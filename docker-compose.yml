@@ -1,0 +1,9 @@
+# Startet PostgreSQL 16 mit den Zugangsdaten, die das Projekt als Standard erwartet.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kernbank
+    ports:
+      - "5432:5432"

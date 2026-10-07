@@ -1,0 +1,9 @@
+[project]
+name = "mini-kernbank"
+version = "0.1.0"
+description = "Kontobuch mit Transaktionssicherheit und Geldwäsche-Erkennung in PostgreSQL und Python"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
