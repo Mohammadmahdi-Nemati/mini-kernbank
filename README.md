@@ -150,6 +150,22 @@ SELECT regel, account_id, begruendung FROM aml.v_alert ORDER BY regel, account_i
 SELECT * FROM bank.v_reconciliation WHERE diff_cents <> 0;   -- muss leer sein
 ```
 
+## 🤖 KI-Agent für dieses Projekt
+
+Im Ordner [`agent/`](agent/) liegt ein Assistent, der dieses Repository kennt. Er beantwortet Fragen zum Code mit
+Belegstellen (`datei:zeile`), fragt die Datenbank **nur lesend** ab, recherchiert bei Bedarf im Web und
+**schlägt Änderungen nur vor**. Geschrieben wird erst nach einem Klick auf „Übernehmen“.
+
+```bash
+bash agent/einrichten.command   # einmalig
+bash agent/start.command        # → http://localhost:7861
+```
+
+Zum Beispiel: *„Wie verhindert bank.transfer() einen Lost Update? Zeig mir die Stelle.“*
+
+LangGraph · Hybrid-RAG (Chroma + BM25) · Gradio · 90 automatische Tests.
+Details: [agent/README.md](agent/README.md) · Entstehung und Testprotokoll: [agent/ENTWICKLUNG.md](agent/ENTWICKLUNG.md)
+
 ## Projektstruktur
 
 ```
@@ -166,6 +182,7 @@ mini-kernbank/
 │   └── db.py
 ├── tests/                 # pytest: Garantien des Kontobuchs und Regeln an Mini-Beispielen
 ├── reports/               # von run.py erzeugt
+├── agent/                 # KI-Agent für dieses Projekt (siehe oben)
 └── run.py
 ```
 

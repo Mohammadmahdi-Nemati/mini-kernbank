@@ -1,0 +1,85 @@
+# Profil des Projekt-Agenten für mini-kernbank.
+# Alles hier ist individuell: Wissen, Werkzeuge, Befehle, Aussehen.
+
+name: mini-kernbank
+emoji: "🏦"
+farbe: blue          # Gradio-Farbton der Oberfläche
+port: 7861
+pfad: ..                         # das Repo, in dem dieser agent/-Ordner liegt
+# modell: claude-sonnet-5-5     # optional: eigenes Modell nur für dieses Projekt
+
+beschreibung: >
+  Kontobuch in PostgreSQL, das unter Last keinen Cent verliert, plus drei
+  erklärbare SQL-Regeln zur Geldwäsche-Erkennung.
+
+wissen: |
+  - Stack: PostgreSQL 16, Python (psycopg 3), pytest. Schemas `bank`, `aml`, `eval`.
+  - Doppelte Buchführung: `booking` besteht aus `entry`-Zeilen; jede Buchung ist ausgeglichen
+    (CONSTRAINT TRIGGER, DEFERRABLE INITIALLY DEFERRED, geprüft beim COMMIT).
+  - Buchungen sind unveränderlich (Trigger verbieten UPDATE/DELETE/TRUNCATE); Korrektur nur per Storno (`bank.reverse()`).
+  - Beträge immer ganze Cent als BIGINT (`*_cents`), nie float.
+  - `bank.transfer()` sperrt beide Konten mit SELECT … FOR UPDATE, sortiert nach account_id (verhindert Deadlocks).
+  - Idempotenz über `idempotency_key UNIQUE` + ON CONFLICT DO NOTHING. IBAN-Prüfung Modulo 97 im CHECK.
+  - `bank.v_reconciliation` muss immer leer sein (diff_cents <> 0).
+  - Experiment Nebenläufigkeit (src/kernbank/concurrency.py): naiv vs. SERIALIZABLE vs. Zeilensperren.
+  - AML-Regeln in sql/03_aml.sql als Sichten: Smurfing, Durchlaufkonto, Kreisüberweisung (rekursive CTE).
+    Alarme in `aml.v_alert`.
+  - Schwellenwerte: Tabelle `aml.param` (Spalten name, value, description), befüllt am Anfang von
+    sql/03_aml.sql; Namen mit Präfix bar_, smurf_, durchlauf_, kreis_. Die Regeln lesen sie über aml.p('name').
+  - Die Wahrheit `eval.truth` dient NUR der Bewertung – Regeln dürfen sie nie lesen.
+  - Daten sind simuliert (src/kernbank/generator.py). Ergebnisse in reports/.
+  - Bei Änderungen an SQL: Garantien des Kontobuchs dürfen nie geschwächt werden. Danach Tests vorschlagen.
+  - Tests nutzen eine eigene Datenbank kernbank_test; die Haupt-DB `kernbank` hat erst nach `run.py aml` Daten.
+
+datenbank:
+  dsn: postgresql://postgres:postgres@localhost:5432/kernbank
+  pruefabfrage: SELECT count(*) AS alarme FROM aml.v_alert   # für die automatischen Tests
+  hinweis: >
+    Beispiele: SELECT regel, account_id, begruendung FROM aml.v_alert;
+    SELECT * FROM aml.param; Tabellen finden: SELECT table_schema, table_name FROM information_schema.tables
+    WHERE table_schema IN ('bank','aml','eval'). Ist die DB leer, wurde `aml` noch nicht ausgeführt.
+
+befehle:
+  tests:
+    befehl: ["{python}", "-m", "pytest", "-q"]
+    beschreibung: alle Tests des Projekts (nutzt die Datenbank kernbank_test, braucht laufendes Docker)
+    timeout: 300
+  nebenlaeufigkeit:
+    befehl: ["{python}", "run.py", "nebenlaeufigkeit"]
+    beschreibung: Experiment Teil 1 (~15 s); überschreibt reports/nebenlaeufigkeit.md
+  aml:
+    befehl: ["{python}", "run.py", "aml"]
+    beschreibung: Daten neu simulieren + Regeln bewerten; SETZT die DB kernbank zurück, überschreibt reports/aml.md
+    timeout: 600
+  git_status:
+    befehl: ["git", "status", "--short"]
+    beschreibung: zeigt geänderte Dateien
+  git_diff:
+    befehl: ["git", "diff", "--stat"]
+    beschreibung: Übersicht aller Änderungen seit dem letzten Commit
+
+ausschluss_extra: [reports/*.csv]
+
+beispiele:
+  - Erkläre mir in 5 Sätzen, wie bank.transfer() einen Lost Update verhindert.
+  - Warum werden die Konten nach account_id sortiert gesperrt? Zeig mir die Stelle.
+  - Welche AML-Alarme gibt es gerade in der Datenbank, gruppiert nach Regel?
+  - Wie funktioniert die rekursive CTE der Kreisüberweisung Schritt für Schritt?
+  - Schlage einen Test vor, der prüft, dass ein Storno nicht zweimal möglich ist.
+  - Was sagt die PostgreSQL-Doku zu SELECT FOR UPDATE vs. SERIALIZABLE?
+
+# Fragen für echttest.py (Test mit dem echten Sprachmodell, Änderungen nur auf einer Kopie)
+echttest:
+  - frage: Wie verhindert bank.transfer() einen Lost Update? Zeig mir die Stelle im Code.
+    werkzeuge: [projekt_durchsuchen, text_suchen, datei_lesen]
+    beleg: true
+  - frage: Wie viele Alarme gibt es pro AML-Regel aktuell in der Datenbank?
+    werkzeuge: [datenbank_abfragen]
+    enthaelt: "23"
+  - frage: Welche Schwellenwerte nutzt die Smurfing-Regel und wo sind sie definiert?
+    werkzeuge: [projekt_durchsuchen, text_suchen, datei_lesen]
+    beleg: true
+  - frage: Ergänze im Modul-Docstring von src/kernbank/iban.py einen Satz, dass die Prüfziffer nach ISO 13616 (Modulo 97) berechnet wird.
+    aenderung: true
+  - frage: Was ist der Unterschied zwischen SELECT FOR UPDATE und SELECT FOR NO KEY UPDATE in PostgreSQL? Recherchiere in der offiziellen Dokumentation.
+    werkzeuge: [web_suchen, webseite_lesen]

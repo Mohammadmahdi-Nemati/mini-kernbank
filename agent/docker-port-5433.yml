@@ -1,0 +1,7 @@
+# Nur für start.command: Ist Port 5432 schon belegt (z. B. durch die Datenbank
+# eines anderen Projekts), startet die Datenbank dieses Projekts auf 5433.
+# Die docker-compose.yml des Projekts bleibt unverändert.
+services:
+  db:
+    ports: !override
+      - "5433:5432"
